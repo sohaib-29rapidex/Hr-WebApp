@@ -31,6 +31,15 @@ Nothing is ever deleted from the machines.
 
 An employee is **office + machine ID** (two machines can both have ID 1).
 
+## Run on Railway (test hosting)
+
+1. railway.com → New Project → **Deploy from GitHub repo** → `Hr-WebApp`.
+2. In the service: **Settings → Volumes → Add volume**, mount path **`/data`** (keeps the database, logo and logins between deploys).
+3. **Settings → Networking → Generate Domain** to get the portal's web address.
+4. Open the address and create the admin login.
+
+Every push to `main` redeploys automatically. Keep it at **1 replica** (the sync scheduler runs inside the app).
+
 ## Install on the server (once)
 
 On the Ubuntu/Debian server, as root:

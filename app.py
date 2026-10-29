@@ -22,7 +22,7 @@ import engine
 import exports
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.environ.get("PORTAL_DATA", os.path.join(BASE, "data"))
+DATA = os.environ.get("PORTAL_DATA") or ("/data" if os.path.isdir("/data") and os.access("/data", os.W_OK) else os.path.join(BASE, "data"))
 os.makedirs(DATA, exist_ok=True)
 DB_PATH = os.path.join(DATA, "rapidex_attendance.db")
 LOGO_PATH = os.path.join(DATA, "logo")
@@ -558,7 +558,7 @@ init_db()
 
 if __name__ == "__main__":
     threading.Thread(target=scheduler, daemon=True).start()
-    port = int(os.environ.get("PORTAL_PORT", 8080))
+    port = int(os.environ.get("PORT") or os.environ.get("PORTAL_PORT") or 8080)  # Railway sets PORT
     print(f"RapidEx Attendance Portal on http://0.0.0.0:{port}")
     from waitress import serve
     serve(app, host="0.0.0.0", port=port, threads=8)

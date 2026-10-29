@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · RapidEx Attendance</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
+<style>
+:root{--plum:#3b0d3f;--plum-3:#6d2a73;--orange:#f26522;--ink:#221626;--mute:#867a8a;--line:#ddd4e0}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;font:15px/1.5 "Plus Jakarta Sans",system-ui,Arial,sans-serif;color:var(--ink);background:#fff}
+.art{background:linear-gradient(150deg,var(--plum),#6d2a73);color:#f3e6f5;padding:48px;display:flex;flex-direction:column;justify-content:space-between}
+.art .brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:22px;color:#fff}
+.art .brand .mark{width:44px;height:44px;border-radius:12px;background:var(--orange);display:grid;place-items:center;font-size:17px}
+.art .brand span{color:var(--orange)}
+.art .brand img{max-height:48px;max-width:200px}
+.art h1{font-size:34px;line-height:1.15;margin:0 0 12px;color:#fff;max-width:14ch}
+.art p{max-width:40ch;margin:0;color:#e2cfe5}
+.codes{display:flex;gap:6px;flex-wrap:wrap;margin-top:22px}
+.codes b{display:inline-grid;place-items:center;min-width:34px;height:28px;border-radius:7px;font-size:13px}
+.form{display:grid;place-items:center;padding:32px 20px}
+form{width:min(380px,100%);display:flex;flex-direction:column;gap:14px}
+form h2{margin:0;font-size:24px;font-weight:800}
+form p{margin:-8px 0 6px;color:var(--mute)}
+label{font-size:13px;font-weight:600}
+input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;margin-top:5px}
+input:focus{outline:none;border-color:var(--plum-3);box-shadow:0 0 0 3px #f4ecf5}
+button{margin-top:6px;padding:12px;border:0;border-radius:10px;background:var(--orange);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+button:hover{background:#d9531a}
+.err{background:#fdeaea;color:#c62828;padding:10px 12px;border-radius:10px;font-size:14px}
+@media (max-width:800px){body{grid-template-columns:1fr}.art{padding:28px 20px}.art h1{font-size:26px}.codes{display:none}}
+</style>
+</head>
+<body>
+<div class="art">
+  <div class="brand">{% if has_logo %}<img src="/logo" alt="RapidEx">{% else %}<div class="mark">Rx</div><div>Rapid<span>Ex</span></div>{% endif %}</div>
+  <div><h1>Attendance for every RapidEx office</h1><p>Punches from all ZKTeco machines, the monthly HR sheet, overtime and individual reports in one place.</p>
+  <div class="codes"><b style="background:#dcf3d4;color:#23701a">P</b><b style="background:#ece2fb;color:#6a3aa3">L</b><b style="background:#fddcdc;color:#c62828">A</b><b style="background:#dce8ff;color:#1f4fc4">H</b><b style="background:#ffe7c4;color:#985200">E</b><b style="background:#fff;color:#3b0d3f">S</b><b style="background:#1f3a8a;color:#fff">WH</b><b style="background:#efecf0;color:#6b6070">WO</b></div></div>
+  <small style="color:#c9b4cc">rapidexpress.pk</small>
+</div>
+<div class="form">
+<form method="post">
+  <h2>{{ 'Create the admin login' if first else 'Sign in' }}</h2>
+  <p>{{ 'First-time setup. You can add HR logins later in Settings.' if first else 'Use your HR portal login.' }}</p>
+  {% for m in get_flashed_messages() %}<div class="err">{{ m }}</div>{% endfor %}
+  <label>Username<input name="username" required autofocus autocomplete="username"></label>
+  <label>Password<input name="password" type="password" required autocomplete="{{ 'new-password' if first else 'current-password' }}"></label>
+  {% if first %}<label>Confirm password<input name="password2" type="password" required autocomplete="new-password"></label>{% endif %}
+  <button>{{ 'Create login' if first else 'Sign in' }}</button>
+</form>
+</div>
+</body>
+</html>

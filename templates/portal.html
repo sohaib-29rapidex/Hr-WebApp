@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RapidEx Attendance</title>
+<link rel="icon" href="{{ '/logo' if has_logo else 'data:,' }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/static/portal.css?v={{ v }}">
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side"></aside>
+  <div class="main">
+    <div class="top" id="top"></div>
+    <div class="content" id="app"><div class="loading"><span class="spin"></span>Loading attendance…</div></div>
+  </div>
+</div>
+<div id="drawer"></div><div id="toast" class="toast" hidden></div>
+<script>window.PORTAL={user:{{ user|tojson }},hasLogo:{{ 'true' if has_logo else 'false' }}};</script>
+<script src="/static/portal.js?v={{ v }}"></script>
+</body>
+</html>

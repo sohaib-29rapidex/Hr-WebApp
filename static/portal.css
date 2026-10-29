@@ -217,3 +217,16 @@ td .sub{display:block;font-size:12px;color:var(--mute)}
   .cal .day{min-height:70px}
   @page{size:A4;margin:12mm}
 }
+
+/* needs-attention review queue */
+.att-item{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--line)}
+.att-item:last-child{border-bottom:0}
+.att-main{display:flex;gap:12px;flex:1 1 380px;min-width:0}
+.att-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.att-title .namebtn{font-size:15px}
+.att-now{margin-top:6px;font-size:13px;color:var(--ink-2);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.att-acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.hist{list-style:none;margin:8px 0 0;padding:8px 12px;background:#fbf9fb;border-left:3px solid var(--orange);border-radius:0 8px 8px 0;display:flex;flex-direction:column;gap:5px}
+.hist li{display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px;align-items:baseline}
+.hist li b{font-weight:600;color:var(--ink)}
+.hist li span{color:var(--mute)}

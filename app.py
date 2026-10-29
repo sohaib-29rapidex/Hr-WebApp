@@ -91,6 +91,10 @@ def init_db():
       machine_id INTEGER NOT NULL, user_id TEXT NOT NULL, day TEXT NOT NULL,
       status TEXT DEFAULT '', fin TEXT DEFAULT '', fout TEXT DEFAULT '', comment TEXT DEFAULT '',
       by_user TEXT, at TEXT, PRIMARY KEY(machine_id, user_id, day));
+    CREATE TABLE IF NOT EXISTS note_log(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, machine_id INTEGER NOT NULL, user_id TEXT NOT NULL, day TEXT NOT NULL,
+      at TEXT, by_user TEXT, change TEXT);
+    CREATE INDEX IF NOT EXISTS ix_log_day ON note_log(day);
     CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
     CREATE TABLE IF NOT EXISTS users(
       id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, pw TEXT NOT NULL,
@@ -98,6 +102,10 @@ def init_db():
     CREATE TABLE IF NOT EXISTS sync_log(
       id INTEGER PRIMARY KEY AUTOINCREMENT, machine_id INTEGER, at TEXT, ok INTEGER, new INTEGER, msg TEXT);
     """)
+    cols = {r[1] for r in c.execute("PRAGMA table_info(notes)")}
+    for col in ("review", "review_by", "review_at"):
+        if col not in cols:
+            c.execute(f"ALTER TABLE notes ADD COLUMN {col} TEXT DEFAULT ''")
     c.commit()
     c.close()
 
@@ -134,8 +142,17 @@ def load_range(d_from, d_to, conn=None):
         punches.setdefault(f"{r['machine_id']}|{r['user_id']}|{r['ts'][:10]}", []).append(r["ts"][11:19])
     for r in c.execute("SELECT * FROM notes WHERE day BETWEEN ? AND ?", (d_from, d_to)):
         notes[f"{r['machine_id']}|{r['user_id']}|{r['day']}"] = {
-            "status": r["status"] or "", "fin": r["fin"] or "", "fout": r["fout"] or "", "comment": r["comment"] or ""}
+            "status": r["status"] or "", "fin": r["fin"] or "", "fout": r["fout"] or "", "comment": r["comment"] or "",
+            "review": r["review"] or "", "rby": r["review_by"] or "", "rat": r["review_at"] or ""}
     return punches, notes
+
+
+def load_log(d_from, d_to, conn=None):
+    out = {}
+    for r in (conn or db()).execute("SELECT * FROM note_log WHERE day BETWEEN ? AND ? ORDER BY id", (d_from, d_to)):
+        out.setdefault(f"{r['machine_id']}|{r['user_id']}|{r['day']}", []).append(
+            {"at": r["at"], "by": r["by_user"], "change": r["change"]})
+    return out
 
 
 # ======================================================================= auth
@@ -298,24 +315,60 @@ def api_bootstrap():
 @login_required
 def api_range():
     p, n = load_range(request.args["from"], request.args["to"])
-    return jsonify(punches=p, notes=n)
+    return jsonify(punches=p, notes=n, log=load_log(request.args["from"], request.args["to"]))
+
+
+REVIEW_LABELS = {"": "Not reviewed", "ok": "Reviewed", "follow": "Needs follow-up"}
+
+
+def _describe(old, new):
+    """Plain-language list of what changed on a day, for the history."""
+    out = []
+    lab = lambda c: engine.CODES.get(c, "Automatic") if c else "Automatic"
+    if old["status"] != new["status"]:
+        out.append(f"Status: {lab(old['status'])} → {lab(new['status'])}")
+    for k, name in (("fin", "Clock-in"), ("fout", "Clock-out")):
+        if old[k] != new[k]:
+            out.append(f"{name} {'removed' if not new[k] else ('changed to ' if old[k] else 'set to ') + new[k]}")
+    if old["comment"] != new["comment"]:
+        out.append(f'Comment: "{new["comment"]}"' if new["comment"] else "Comment removed")
+    if old["review"] != new["review"]:
+        out.append({"ok": "Marked as reviewed", "follow": "Flagged for follow-up", "": "Review cleared"}[new["review"]])
+    return out
 
 
 @app.route("/api/note", methods=["POST"])
 @login_required
 def api_note():
     f = request.get_json(force=True)
-    vals = {k: (f.get(k) or "").strip() for k in ("status", "fin", "fout", "comment")}
-    if vals["status"] and vals["status"] not in engine.CODES:
+    key = (f["m"], f["u"], f["day"])
+    row = db().execute("SELECT * FROM notes WHERE machine_id=? AND user_id=? AND day=?", key).fetchone()
+    old = {k: ((row[k] if row else "") or "") for k in ("status", "fin", "fout", "comment", "review")}
+    new = dict(old)
+    for k in ("status", "fin", "fout", "comment", "review"):
+        if k in f:
+            new[k] = (f.get(k) or "").strip()
+    if new["status"] and new["status"] not in engine.CODES:
         return jsonify(error="Unknown status"), 400
-    if any(vals.values()):
-        db().execute("""INSERT OR REPLACE INTO notes(machine_id,user_id,day,status,fin,fout,comment,by_user,at)
-                        VALUES(?,?,?,?,?,?,?,?,?)""", (f["m"], f["u"], f["day"], vals["status"], vals["fin"], vals["fout"],
-                                                        vals["comment"], session["user"], engine.now().isoformat(timespec="seconds")))
+    if new["review"] not in REVIEW_LABELS:
+        return jsonify(error="Unknown review status"), 400
+    now = engine.now().isoformat(timespec="seconds")
+    changes = _describe(old, new)
+    if not changes:
+        return jsonify(ok=True, changes=[])
+    rby = session["user"] if new["review"] != old["review"] else ((row["review_by"] if row else "") or "")
+    rat = now if new["review"] != old["review"] else ((row["review_at"] if row else "") or "")
+    if any(new.values()):
+        db().execute("""INSERT OR REPLACE INTO notes(machine_id,user_id,day,status,fin,fout,comment,by_user,at,review,review_by,review_at)
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", key + (new["status"], new["fin"], new["fout"], new["comment"],
+                                                                     session["user"], now, new["review"], rby, rat))
     else:
-        db().execute("DELETE FROM notes WHERE machine_id=? AND user_id=? AND day=?", (f["m"], f["u"], f["day"]))
+        db().execute("DELETE FROM notes WHERE machine_id=? AND user_id=? AND day=?", key)
+    for ch in changes:
+        db().execute("INSERT INTO note_log(machine_id,user_id,day,at,by_user,change) VALUES(?,?,?,?,?,?)",
+                     key + (now, session["user"], ch))
     db().commit()
-    return jsonify(ok=True)
+    return jsonify(ok=True, changes=changes, at=now, by=session["user"])
 
 
 STAFF_COLS = {"name": "name", "des": "designation", "dep": "department", "sin": "shift_in", "sout": "shift_out",

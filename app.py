@@ -224,7 +224,7 @@ def sync_machine(m):
                 conn.disconnect()
             except Exception:
                 pass
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = engine.now().strftime("%Y-%m-%d %H:%M:%S")
     c.execute("UPDATE machines SET last_sync=?, last_ok=?, last_msg=? WHERE id=?", (now, int(ok), msg, m["id"]))
     c.execute("INSERT INTO sync_log(machine_id,at,ok,new,msg) VALUES(?,?,?,?,?)", (m["id"], now, int(ok), new, msg))
     c.commit()
@@ -290,8 +290,8 @@ def api_bootstrap():
     nxt = float(st["last_auto_sync"]) + float(st["sync_hours"]) * 3600 if st["last_auto_sync"] else None
     return jsonify(settings={k: st[k] for k in ("sync_hours", "auto", "d_in", "d_out", "grace", "ot_min", "off",
                                                  "holidays", "short_h", "company")},
-                   machines=ms, staff=all_staff(), today=date.today().isoformat(), user=session["user"],
-                   lastSync=last, nextSync=datetime.fromtimestamp(nxt).strftime("%Y-%m-%d %H:%M:%S") if nxt else None)
+                   machines=ms, staff=all_staff(), today=engine.today().isoformat(), user=session["user"],
+                   lastSync=last, nextSync=datetime.fromtimestamp(nxt, engine.TZ).strftime("%Y-%m-%d %H:%M:%S") if nxt else None)
 
 
 @app.route("/api/range")
@@ -311,7 +311,7 @@ def api_note():
     if any(vals.values()):
         db().execute("""INSERT OR REPLACE INTO notes(machine_id,user_id,day,status,fin,fout,comment,by_user,at)
                         VALUES(?,?,?,?,?,?,?,?,?)""", (f["m"], f["u"], f["day"], vals["status"], vals["fin"], vals["fout"],
-                                                        vals["comment"], session["user"], datetime.now().isoformat(timespec="seconds")))
+                                                        vals["comment"], session["user"], engine.now().isoformat(timespec="seconds")))
     else:
         db().execute("DELETE FROM notes WHERE machine_id=? AND user_id=? AND day=?", (f["m"], f["u"], f["day"]))
     db().commit()
@@ -505,7 +505,7 @@ def _filter_staff(args):
 @app.route("/export/month")
 @login_required
 def export_month():
-    m = request.args.get("m") or date.today().isoformat()[:7]
+    m = request.args.get("m") or engine.today().isoformat()[:7]
     days = engine.month_days(m)
     st, p, n, ms = _ctx(days[0], days[-1])
     staff = _filter_staff(request.args)
@@ -516,7 +516,7 @@ def export_month():
 @app.route("/export/day")
 @login_required
 def export_day():
-    d = request.args.get("d") or date.today().isoformat()
+    d = request.args.get("d") or engine.today().isoformat()
     st, p, n, ms = _ctx(d, d)
     return _send(exports.day_sheet(d, _filter_staff(request.args), p, n, st, ms), f"RapidEx_Attendance_{d}.xlsx")
 
@@ -524,7 +524,7 @@ def export_day():
 @app.route("/export/report")
 @login_required
 def export_report():
-    sid, m = int(request.args["sid"]), request.args.get("m") or date.today().isoformat()[:7]
+    sid, m = int(request.args["sid"]), request.args.get("m") or engine.today().isoformat()[:7]
     s = next(x for x in all_staff() if x["sid"] == sid)
     days = engine.month_days(m)
     st, p, n, ms = _ctx(days[0], days[-1])
@@ -535,7 +535,7 @@ def export_report():
 @app.route("/export/ot")
 @login_required
 def export_ot():
-    m = request.args.get("m") or date.today().isoformat()[:7]
+    m = request.args.get("m") or engine.today().isoformat()[:7]
     days = engine.month_days(m)
     st, p, n, ms = _ctx(days[0], days[-1])
     staff = [s for s in _filter_staff(request.args) if s["ot"]]
@@ -546,7 +546,7 @@ def export_ot():
 @app.route("/export/punches")
 @login_required
 def export_punches():
-    d = request.args.get("d") or date.today().isoformat()
+    d = request.args.get("d") or engine.today().isoformat()
     rows = db().execute("""SELECT p.*, s.name, m.name AS office, s.tracked FROM punches p
                            LEFT JOIN staff s ON s.machine_id=p.machine_id AND s.user_id=p.user_id
                            LEFT JOIN machines m ON m.id=p.machine_id WHERE p.ts BETWEEN ? AND ? ORDER BY p.ts""",

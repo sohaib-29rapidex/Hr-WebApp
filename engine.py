@@ -5,7 +5,20 @@ Used for Excel exports so files always match what HR sees on screen.
 Codes: P Present, L Late, A Absent, H Half day, E Excused, S Sick leave,
        WH Work from home, WO Weekly off / holiday
 """
+import os
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+# All dates and times use Pakistan time, whatever timezone the hosting server is in.
+TZ = ZoneInfo(os.environ.get("PORTAL_TZ", "Asia/Karachi"))
+
+
+def now():
+    return datetime.now(TZ).replace(tzinfo=None)
+
+
+def today():
+    return now().date()
 
 CODES = {"P": "Present", "L": "Late", "A": "Absent", "H": "Half day", "E": "Excused",
          "S": "Sick leave", "WH": "Work from home", "WO": "Weekly off / holiday"}
@@ -36,7 +49,7 @@ def is_off(ds, st):
 def day_row(s, ds, times, note, st, today=None):
     """s: staff dict (sid,m,u,name,des,dep,sin,sout,grace,late,hours,ot)
     times: list of 'HH:MM:SS' for that person/day; note: dict or None; st: settings dict."""
-    today = today or date.today().isoformat()
+    today = today or globals()["today"]().isoformat()
     if ds > today:
         return None
     t = sorted(x[:5] for x in times)
